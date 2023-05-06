@@ -11,6 +11,8 @@ class PostQuerySet(models.QuerySet):
         return most_popular_posts
 
     def fetch_with_comments_count(self):
+        """ При использовании 2-х .annotate, промежуточная структура данных всё же создается внутри БД
+        и поглощает море вычислительных ресурсов."""
         most_popular_posts_ids = [post.id for post in self]
         posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
             comments_count=Count('comments'))
@@ -19,6 +21,17 @@ class PostQuerySet(models.QuerySet):
         for post in self:
             post.comments_count = count_for_id[post.id]
         return self
+
+    def filter_posts_by_year(self, year):
+        posts_at_year = self.filter(published_at__year=year).order_by('published_at')
+        return posts_at_year
+
+
+class TagQuerySet(models.QuerySet):
+
+    def popular(self):
+        most_popular_tags = self.annotate(Count('posts')).order_by('-posts__count')
+        return most_popular_tags
 
 
 class Post(models.Model):
@@ -54,13 +67,6 @@ class Post(models.Model):
         ordering = ['-published_at']
         verbose_name = 'пост'
         verbose_name_plural = 'посты'
-
-
-class TagQuerySet(models.QuerySet):
-
-    def popular(self):
-        most_popular_tags = self.annotate(Count('posts')).order_by('-posts__count')
-        return most_popular_tags
 
 
 class Tag(models.Model):
