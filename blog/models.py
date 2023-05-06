@@ -10,6 +10,16 @@ class PostQuerySet(models.QuerySet):
         most_popular_posts = self.annotate(likes_count=Count('likes')).order_by('-likes_count')
         return most_popular_posts
 
+    def fetch_with_comments_count(self):
+        most_popular_posts_ids = [post.id for post in self]
+        posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
+            comments_count=Count('comments'))
+        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
+        count_for_id = dict(ids_and_comments)
+        for post in self:
+            post.comments_count = count_for_id[post.id]
+        return self
+
 
 class Post(models.Model):
     title = models.CharField('Заголовок', max_length=200)
@@ -75,6 +85,7 @@ class Comment(models.Model):
     post = models.ForeignKey(
         'Post',
         on_delete=models.CASCADE,
+        related_name='comments',
         verbose_name='Пост, к которому написан')
     author = models.ForeignKey(
         User,
